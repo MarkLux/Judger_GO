@@ -1,4 +1,4 @@
-package main
+package judger
 
 /*
 #cgo LDFLAGS: -ldl
@@ -28,7 +28,8 @@ void judger_run(struct config * _config,struct result * _result) {
 }
 */
 import "C"
-import "fmt"
+
+import "unsafe"
 
 const ARGS_MAX_NUMBER int = 256
 const ENV_MAX_NUMBER int = 256
@@ -89,47 +90,29 @@ type Result struct {
 	result   ResultCode
 }
 
-func main() {
+func JudgerRun(config Config) Result {
 
-	var args [ARGS_MAX_NUMBER]string
-	var env [ENV_MAX_NUMBER]string
-	args[0] = "HelloWorld"
+	var _config C.struct_config = parseConfig(config)
+	var _result C.struct_result
 
-	testConfig := Config{
-		maxCpuTime:       1000,
-		maxRealTime:      2000,
-		maxMemory:        128 * 1024 * 1024,
-		maxProcessNumber: 200,
-		maxOutPutSize:    10000,
-		maxStack:         32 * 1024 * 1024,
-		exePath:          "/bin/bash",
-		inputPath:        "echo.in",
-		outputPath:       "echo.out",
-		args:             args,
-		env:              env,
-		logPath:          "echo.log",
-		secCompRuleName:  "c_cpp",
-		uid:              0,
-		gid:              0,
-	}
+	defer freeConfig(&_config)
+	defer freeArgs(_config.args, len(config.args))
+	defer freeEnv(_config.env, len(config.env))
 
-	var testResult Result
-
-	var _config C.struct_config = parseConfig(testConfig)
-	var _result C.struct_result = parseResult(testResult)
 	C.judger_run(&_config, &_result)
-	fmt.Println(_result.result)
+
+	return parseResult(_result)
 }
 
-func parseResult(r Result) C.struct_result {
-	var p C.struct_result
-	p.cpu_time = C.int(r.cpuTime)
-	p.real_time = C.int(r.realTime)
-	p.memory = C.long(r.memory)
-	p.signal = C.int(r.signal)
-	p.exit_code = C.int(r.exitCode)
-	p.error = C.int(r.error)
-	p.result = C.int(r.result)
+func parseResult(r C.struct_result) Result {
+	var p Result
+	p.cpuTime = int(r.cpu_time)
+	p.realTime = int(r.real_time)
+	p.memory = int(r.memory)
+	p.signal = int(r.signal)
+	p.exitCode = int(r.exit_code)
+	p.error = ErrorCode(r.error)
+	p.result = ResultCode(r.result)
 	return p
 }
 
@@ -169,4 +152,30 @@ func parseEnv(goArray [ENV_MAX_NUMBER]string) [ENV_MAX_NUMBER]*C.char {
 		p[i] = C.CString(goArray[i])
 	}
 	return p
+}
+
+// memory manage
+
+func freeConfig(c *C.struct_config) {
+
+	// free space that out of go's gc
+
+	C.free(unsafe.Pointer(c.exe_path))
+	C.free(unsafe.Pointer(c.input_path))
+	C.free(unsafe.Pointer(c.output_path))
+	C.free(unsafe.Pointer(c.error_path))
+	C.free(unsafe.Pointer(c.log_path))
+	C.free(unsafe.Pointer(c.seccomp_rule_name))
+}
+
+func freeArgs(args [ARGS_MAX_NUMBER]*C.char, length int) {
+	for i := 0; i < length; i++ {
+		C.free(unsafe.Pointer(args[i]))
+	}
+}
+
+func freeEnv(env [ENV_MAX_NUMBER]*C.char, length int) {
+	for i := 0; i < length; i++ {
+		C.free(unsafe.Pointer(env[i]))
+	}
 }

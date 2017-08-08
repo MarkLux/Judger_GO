@@ -62,32 +62,32 @@ const (
 )
 
 type Config struct {
-	maxCpuTime       int
-	maxRealTime      int
-	maxMemory        int
-	maxStack         int
-	maxProcessNumber int
-	maxOutPutSize    int
-	exePath          string
-	inputPath        string
-	outputPath       string
-	errorPath        string
-	logPath          string
-	args             [ARGS_MAX_NUMBER]string
-	env              [ENV_MAX_NUMBER]string
-	secCompRuleName  string
-	uid              uint
-	gid              uint
+	MaxCpuTime       int
+	MaxRealTime      int
+	MaxMemory        int
+	MaxStack         int
+	MaxProcessNumber int
+	MaxOutPutSize    int
+	ExePath          string
+	InputPath        string
+	OutputPath       string
+	ErrorPath        string
+	LogPath          string
+	Args             [ARGS_MAX_NUMBER]string
+	Env              [ENV_MAX_NUMBER]string
+	SecCompRuleName  string
+	Uid              uint
+	Gid              uint
 }
 
 type Result struct {
-	cpuTime  int
-	realTime int
-	memory   int
-	signal   int
-	exitCode int
-	error    ErrorCode
-	result   ResultCode
+	CpuTime  int
+	RealTime int
+	Memory   int
+	Signal   int
+	ExitCode int
+	Error    ErrorCode
+	Result   ResultCode
 }
 
 func JudgerRun(config Config) Result {
@@ -96,8 +96,8 @@ func JudgerRun(config Config) Result {
 	var _result C.struct_result
 
 	defer freeConfig(&_config)
-	defer freeArgs(_config.args, len(config.args))
-	defer freeEnv(_config.env, len(config.env))
+	defer freeArgs(_config.args, len(config.Args))
+	defer freeEnv(_config.env, len(config.Env))
 
 	C.judger_run(&_config, &_result)
 
@@ -106,34 +106,34 @@ func JudgerRun(config Config) Result {
 
 func parseResult(r C.struct_result) Result {
 	var p Result
-	p.cpuTime = int(r.cpu_time)
-	p.realTime = int(r.real_time)
-	p.memory = int(r.memory)
-	p.signal = int(r.signal)
-	p.exitCode = int(r.exit_code)
-	p.error = ErrorCode(r.error)
-	p.result = ResultCode(r.result)
+	p.CpuTime = int(r.cpu_time)
+	p.RealTime = int(r.real_time)
+	p.Memory = int(r.memory)
+	p.Signal = int(r.signal)
+	p.ExitCode = int(r.exit_code)
+	p.Error = ErrorCode(r.error)
+	p.Result = ResultCode(r.result)
 	return p
 }
 
 func parseConfig(c Config) C.struct_config {
 	var p C.struct_config
 
-	p.max_cpu_time = C.int(c.maxCpuTime)
-	p.max_real_time = C.int(c.maxRealTime)
-	p.max_memory = C.long(c.maxMemory)
-	p.max_stack = C.long(c.maxStack)
-	p.max_process_number = C.int(c.maxProcessNumber)
-	p.max_output_size = C.long(c.maxOutPutSize)
-	p.exe_path = C.CString(c.exePath)
-	p.input_path = C.CString(c.inputPath)
-	p.output_path = C.CString(c.outputPath)
-	p.error_path = C.CString(c.errorPath)
-	p.log_path = C.CString(c.logPath)
-	p.args = parseArgs(c.args)
-	p.env = parseEnv(c.env)
-	p.log_path = C.CString(c.logPath)
-	p.seccomp_rule_name = C.CString(c.secCompRuleName)
+	p.max_cpu_time = C.int(c.MaxCpuTime)
+	p.max_real_time = C.int(c.MaxRealTime)
+	p.max_memory = C.long(c.MaxMemory)
+	p.max_stack = C.long(c.MaxStack)
+	p.max_process_number = C.int(c.MaxProcessNumber)
+	p.max_output_size = C.long(c.MaxOutPutSize)
+	p.exe_path = C.CString(c.ExePath)
+	p.input_path = C.CString(c.InputPath)
+	p.output_path = C.CString(c.OutputPath)
+	p.error_path = C.CString(c.ErrorPath)
+	p.log_path = C.CString(c.LogPath)
+	p.args = parseArgs(c.Args)
+	p.env = parseEnv(c.Env)
+	p.log_path = C.CString(c.LogPath)
+	p.seccomp_rule_name = C.CString(c.SecCompRuleName)
 
 	return p
 }

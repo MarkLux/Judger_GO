@@ -37,6 +37,8 @@ const ENV_MAX_NUMBER int = 256
 type ResultCode int
 type ErrorCode int
 
+const UNLIMITED = -1
+
 const (
 	SUCCESS             = 0
 	INVALID_CONFIG      = -1

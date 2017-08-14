@@ -75,8 +75,8 @@ type Config struct {
 	OutputPath       string
 	ErrorPath        string
 	LogPath          string
-	Args             [ARGS_MAX_NUMBER]string
-	Env              [ENV_MAX_NUMBER]string
+	Args             []string
+	Env              []string
 	SecCompRuleName  string
 	Uid              uint
 	Gid              uint
@@ -140,17 +140,25 @@ func parseConfig(c Config) C.struct_config {
 	return p
 }
 
-func parseArgs(goArray [ARGS_MAX_NUMBER]string) [ARGS_MAX_NUMBER]*C.char {
+func parseArgs(goArray []string) [ARGS_MAX_NUMBER]*C.char {
 	var p [ARGS_MAX_NUMBER]*C.char
-	for i := 0; i < len(goArray); i++ {
+	leng := len(goArray)
+	if leng > ARGS_MAX_NUMBER {
+		leng = ARGS_MAX_NUMBER
+	}
+	for i := 0; i < leng; i++ {
 		p[i] = C.CString(goArray[i])
 	}
 	return p
 }
 
-func parseEnv(goArray [ENV_MAX_NUMBER]string) [ENV_MAX_NUMBER]*C.char {
-	var p [ARGS_MAX_NUMBER]*C.char
-	for i := 0; i < len(goArray); i++ {
+func parseEnv(goArray []string) [ENV_MAX_NUMBER]*C.char {
+	var p [ENV_MAX_NUMBER]*C.char
+	leng := len(goArray)
+	if leng > ENV_MAX_NUMBER {
+		leng = ENV_MAX_NUMBER
+	}
+	for i := 0; i < leng; i++ {
 		p[i] = C.CString(goArray[i])
 	}
 	return p

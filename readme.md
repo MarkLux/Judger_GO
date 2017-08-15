@@ -47,8 +47,8 @@ func main() {
 		OutputPath:       "echo.out",
 		InputPath:        "echo.in",
 		LogPath:          "echo.log",
-		Args:             [judger.ARGS_MAX_NUMBER]string{"hello World"},
-		Env:              [judger.ENV_MAX_NUMBER]string{"foo=bar"},
+		Args:             []string{"hello World"},
+		Env:              []string{"foo=bar"},
 		SecCompRuleName:  "c_cpp",
 		Uid:              0,
 		Gid:              0,
@@ -59,6 +59,3 @@ func main() {
 	fmt.Println("result = ", testResult.Result)
 }
 ```
-
-## notice
-due to the usage of cgo,you may need to execute `go build` then run the programm instead of execute `go run` directly.

@@ -94,20 +94,23 @@ type Result struct {
 
 func JudgerRun(config Config) Result {
 
-	var _config C.struct_config = parseConfig(config)
-	var _result C.struct_result
+	var _config *C.struct_config = parseConfig(config)
+	var _result *C.struct_result
 
-	defer freeConfig(&_config)
+	defer freeConfig(_config)
 	defer freeArgs(_config.args, len(config.Args))
 	defer freeEnv(_config.env, len(config.Env))
 
-	C.judger_run(&_config, &_result)
+	C.judger_run(_config, _result)
 
 	return parseResult(_result)
 }
 
-func parseResult(r C.struct_result) Result {
+func parseResult(r *C.struct_result) Result {
 	var p Result
+
+	defer freeResult(r)
+
 	p.CpuTime = int(r.cpu_time)
 	p.RealTime = int(r.real_time)
 	p.Memory = int(r.memory)
@@ -115,11 +118,12 @@ func parseResult(r C.struct_result) Result {
 	p.ExitCode = int(r.exit_code)
 	p.Error = ErrorCode(r.error)
 	p.Result = ResultCode(r.result)
+
 	return p
 }
 
-func parseConfig(c Config) C.struct_config {
-	var p C.struct_config
+func parseConfig(c Config) *C.struct_config {
+	var p *C.struct_config
 
 	p.max_cpu_time = C.int(c.MaxCpuTime)
 	p.max_real_time = C.int(c.MaxRealTime)
@@ -176,6 +180,7 @@ func freeConfig(c *C.struct_config) {
 	C.free(unsafe.Pointer(c.error_path))
 	C.free(unsafe.Pointer(c.log_path))
 	C.free(unsafe.Pointer(c.seccomp_rule_name))
+	C.free(unsafe.Pointer(c))
 }
 
 func freeArgs(args [ARGS_MAX_NUMBER]*C.char, length int) {
@@ -188,4 +193,8 @@ func freeEnv(env [ENV_MAX_NUMBER]*C.char, length int) {
 	for i := 0; i < length; i++ {
 		C.free(unsafe.Pointer(env[i]))
 	}
+}
+
+func freeResult(r *C.struct_result) {
+	C.free(unsafe.Pointer(r))
 }

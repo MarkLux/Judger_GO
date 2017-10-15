@@ -18,18 +18,20 @@ void judger_run(struct config * _config,struct result * _result) {
         return;
     }
 
-    int (*judger_run)(struct config *,struct result *);
+	void (*judge_run)(struct config *,struct result *);
 
-    judger_run = dlsym(handler,"run");
+    judge_run = dlsym(handler,"run");
 
-    judger_run(_config,_result);
+	judge_run(_config,_result);
 
     return;
 }
 */
 import "C"
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 const ARGS_MAX_NUMBER int = 256
 const ENV_MAX_NUMBER int = 256

@@ -1,40 +1,11 @@
 package judger
 
-/*
-#cgo LDFLAGS: -ldl
-#include <stdio.h>
-#include <dlfcn.h>
-#include <stdlib.h>
-#include "runner.h"
-
-void judger_run(struct config * _config,struct result * _result) {
-
-    //load dynamic library from /usr/lib/judger
-    void * handler =  dlopen("/usr/lib/judger/libjudger.so",RTLD_LAZY);
-
-    if (!handler) {
-        _result->error = LOAD_JUDGER_FAILED;
-        _result->result = SYSTEM_ERROR;
-        return;
-    }
-
-	void (*judge_run)(struct config *,struct result *);
-
-    judge_run = dlsym(handler,"run");
-
-	judge_run(_config,_result);
-
-    return;
-}
-*/
-import "C"
-
 import (
-	"unsafe"
+	"encoding/json"
+	"log"
+	"os/exec"
+	"strconv"
 )
-
-const ARGS_MAX_NUMBER int = 256
-const ENV_MAX_NUMBER int = 256
 
 type ResultCode int
 type ErrorCode int
@@ -80,8 +51,8 @@ type Config struct {
 	Args             []string
 	Env              []string
 	SecCompRuleName  string
-	Uid              uint
-	Gid              uint
+	Uid              int
+	Gid              int
 }
 
 type Result struct {
@@ -94,100 +65,51 @@ type Result struct {
 	Result   ResultCode
 }
 
-func JudgerRun(config Config) Result {
-
-	var _config C.struct_config = parseConfig(config)
-	var _result C.struct_result
-
-	defer freeConfig(&_config)
-	defer freeArgs(_config.args, len(config.Args))
-	defer freeEnv(_config.env, len(config.Env))
-
-	C.judger_run(&_config, &_result)
-
-	return parseResult(_result)
-}
-
-func parseResult(r C.struct_result) Result {
-	var p Result
-	p.CpuTime = int(r.cpu_time)
-	p.RealTime = int(r.real_time)
-	p.Memory = int(r.memory)
-	p.Signal = int(r.signal)
-	p.ExitCode = int(r.exit_code)
-	p.Error = ErrorCode(r.error)
-	p.Result = ResultCode(r.result)
-	return p
-}
-
-func parseConfig(c Config) C.struct_config {
-	var p C.struct_config
-
-	p.max_cpu_time = C.int(c.MaxCpuTime)
-	p.max_real_time = C.int(c.MaxRealTime)
-	p.max_memory = C.long(c.MaxMemory)
-	p.max_stack = C.long(c.MaxStack)
-	p.max_process_number = C.int(c.MaxProcessNumber)
-	p.max_output_size = C.long(c.MaxOutPutSize)
-	p.exe_path = C.CString(c.ExePath)
-	p.input_path = C.CString(c.InputPath)
-	p.output_path = C.CString(c.OutputPath)
-	p.error_path = C.CString(c.ErrorPath)
-	p.log_path = C.CString(c.LogPath)
-	p.args = parseArgs(c.Args)
-	p.env = parseEnv(c.Env)
-	p.log_path = C.CString(c.LogPath)
-	p.seccomp_rule_name = C.CString(c.SecCompRuleName)
-
-	return p
-}
-
-func parseArgs(goArray []string) [ARGS_MAX_NUMBER]*C.char {
-	var p [ARGS_MAX_NUMBER]*C.char
-	leng := len(goArray)
-	if leng > ARGS_MAX_NUMBER {
-		leng = ARGS_MAX_NUMBER
+func JudgerRun(config Config) (Result, error) {
+	args := []string{}
+	// parsing args
+	args = append(args, "--max_cpu_time="+strconv.Itoa(config.MaxCpuTime))
+	args = append(args, "--max_real_time="+strconv.Itoa(config.MaxRealTime))
+	args = append(args, "--max_memory="+strconv.Itoa(config.MaxMemory))
+	args = append(args, "--max_process_number="+strconv.Itoa(config.MaxProcessNumber))
+	args = append(args, "--max_stack="+strconv.Itoa(config.MaxStack))
+	args = append(args, "--max_output_size="+strconv.Itoa(config.MaxOutPutSize))
+	args = append(args, "--exe_path="+config.ExePath)
+	args = append(args, "--input_path="+config.InputPath)
+	args = append(args, "--output_path="+config.OutputPath)
+	args = append(args, "--error_path="+config.ErrorPath)
+	args = append(args, "--log_path="+config.LogPath)
+	// parsing list args
+	for _, arg := range config.Args {
+		args = append(args, "--args="+arg)
 	}
-	for i := 0; i < leng; i++ {
-		p[i] = C.CString(goArray[i])
+
+	for _, env := range config.Env {
+		args = append(args, "--env="+env)
 	}
-	return p
+
+	args = append(args, "--seccomp_rule_name="+config.SecCompRuleName)
+	if config.Uid > 0 {
+		args = append(args, "--uid="+strconv.Itoa(config.Uid))
+	}
+	if config.Gid > 0 {
+		args = append(args, "--gid="+strconv.Itoa(config.Gid))
+	}
+
+	cmd := exec.Command("/usr/lib/judger/libjudger.so", args...)
+
+	output, err := cmd.Output()
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	var runResult Result
+
+	if err := json.Unmarshal(output, &runResult); err != nil {
+		log.Println(err)
+	}
+
+	return runResult, err
 }
 
-func parseEnv(goArray []string) [ENV_MAX_NUMBER]*C.char {
-	var p [ENV_MAX_NUMBER]*C.char
-	leng := len(goArray)
-	if leng > ENV_MAX_NUMBER {
-		leng = ENV_MAX_NUMBER
-	}
-	for i := 0; i < leng; i++ {
-		p[i] = C.CString(goArray[i])
-	}
-	return p
-}
-
-// memory manage
-
-func freeConfig(c *C.struct_config) {
-
-	// free space that out of go's gc
-
-	C.free(unsafe.Pointer(c.exe_path))
-	C.free(unsafe.Pointer(c.input_path))
-	C.free(unsafe.Pointer(c.output_path))
-	C.free(unsafe.Pointer(c.error_path))
-	C.free(unsafe.Pointer(c.log_path))
-	C.free(unsafe.Pointer(c.seccomp_rule_name))
-}
-
-func freeArgs(args [ARGS_MAX_NUMBER]*C.char, length int) {
-	for i := 0; i < length; i++ {
-		C.free(unsafe.Pointer(args[i]))
-	}
-}
-
-func freeEnv(env [ENV_MAX_NUMBER]*C.char, length int) {
-	for i := 0; i < length; i++ {
-		C.free(unsafe.Pointer(env[i]))
-	}
-}

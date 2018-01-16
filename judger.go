@@ -89,10 +89,10 @@ func JudgerRun(config Config) (Result, error) {
 	}
 
 	args = append(args, "--seccomp_rule_name="+config.SecCompRuleName)
-	if config.Uid > 0 {
+	if config.Uid >= 0 {
 		args = append(args, "--uid="+strconv.Itoa(config.Uid))
 	}
-	if config.Gid > 0 {
+	if config.Gid >= 0 {
 		args = append(args, "--gid="+strconv.Itoa(config.Gid))
 	}
 
